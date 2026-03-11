@@ -9,25 +9,25 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
     <style>
-        :root { --accent: #00ff88; --glass: rgba(0, 0, 0, 0.75); --blur: blur(20px); }
+        :root { --accent: #00ff88; --error: #ff4444; --glass: rgba(0, 0, 0, 0.75); --blur: blur(20px); }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; color: white; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; font-family: 'Segoe UI', sans-serif; color: white; }
 
-        /* Camera Feed Layer - Ensures it stays behind the UI */
+        /* Fix to ensure camera feed isn't blocked on mobile */
         video { 
-            position: fixed; 
+            position: fixed !important; 
             top: 50% !important; 
             left: 50% !important; 
-            transform: translate(-50%, -50%); 
-            object-fit: cover; 
-            min-width: 100vw; 
-            min-height: 100vh;
-            z-index: -2; 
+            transform: translate(-50%, -50%) !important; 
+            object-fit: cover !important; 
+            width: 100vw !important; 
+            height: 100vh !important;
+            z-index: -1 !important; 
         }
 
-        #ui-layer { position: fixed; inset: 0; z-index: 100; pointer-events: none; }
-        .top-nav, .bottom-area, .icon-btn, .cam-btn, .station-card { pointer-events: auto; }
+        #ui-layer { position: fixed; inset: 0; z-index: 100; pointer-events: none; transition: 0.5s; }
+        .top-nav, .bottom-area, .full-page, .advisory-trigger, .icon-btn, .cam-btn, .station-card { pointer-events: auto; }
 
         #match-notification { position: fixed; top: 100px; left: 50%; transform: translateX(-50%); padding: 12px 25px; border-radius: 50px; font-weight: 900; font-size: 11px; letter-spacing: 2px; z-index: 5000; opacity: 0; transition: 0.3s; pointer-events: none; backdrop-filter: blur(10px); background: var(--accent); color: #000; text-align: center; min-width: 220px; }
         #match-notification.show { opacity: 1; top: 120px; }
@@ -36,7 +36,7 @@
         .hidden { opacity: 0; pointer-events: none; visibility: hidden; }
         
         .video-container { width: 90%; max-width: 600px; aspect-ratio: 16/9; border-radius: 20px; overflow: hidden; border: 1px solid var(--accent); position: relative; background: #050505; }
-        .tut-vid { width: 100%; height: 100%; object-fit: cover; }
+        video.tut-vid { width: 100%; height: 100%; object-fit: cover; position: relative !important; z-index: 1 !important; }
         .skip-fab { margin-top: 25px; background: rgba(255,255,255,0.05); padding: 12px 35px; border-radius: 50px; cursor: pointer; border: 1px solid rgba(255,255,255,0.2); font-size: 10px; letter-spacing: 2px; font-weight: 900; }
 
         .top-nav { position: absolute; top: 0; left: 0; right: 0; padding: 30px 20px; display: flex; justify-content: space-between; align-items: flex-start; }
@@ -107,31 +107,25 @@
 
     <div id="shutter"></div>
 
-    <a-scene 
-        mindar-image="imageTargetSrc: targets.mind; autoStart: false; uiLoading: no; uiScanning: no;" 
-        embedded 
-        renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true;" 
-        vr-mode-ui="enabled: false"
-        device-orientation-permission-ui="enabled: false">
+    <a-scene mindar-image="imageTargetSrc: targets.mind; autoStart: false; uiLoading: no; uiScanning: no;" embedded renderer="transparent: true; alpha: true;">
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
         <a-entity id="target-container"></a-entity>
     </a-scene>
 
     <script>
-        // MATCHED EXACTLY TO YOUR FILENAMES IN SCREENSHOT
         const stations = [
-            { name: "Map", thumb: "./assets/A1_Map.jpg", link: "https://jmflorencio.github.io/BaguioBotanicalMap/" },
-            { name: "Arbor", thumb: "./assets/Arbor.png", link: "https://tour.panoee.net/..." },
-            { name: "Cactus & Succulents", thumb: "./assets/Cactus&Succulents.png", link: "" },
-            { name: "Chinese Garden", thumb: "./assets/Chinese%20Garden.png", link: "" },
-            { name: "Friendship Garden", thumb: "./assets/City%20of%20Vaughan%20Friendship%20Garden.png", link: "https://tour.panoee.net/..." },
-            { name: "Cordillera Village", thumb: "./assets/Cordillera%20Village.png", link: "" },
-            { name: "Greenhouse", thumb: "./assets/Greenhouse.png", link: "" },
-            { name: "Japanese Garden", thumb: "./assets/Japanese%20Garden.png", link: "" },
-            { name: "Japanese Tunnel", thumb: "./assets/Japanese%20Tunnel.png", link: "" },
-            { name: "Korea Garden", thumb: "./assets/Korea%20Garden.png", link: "" },
-            { name: "Orchidarium", thumb: "./assets/Orchidarium.png", link: "" },
-            { name: "PMSEA Garden", thumb: "./assets/PMSEA%20Garden.png", link: "" }
+            { name: "Map", thumb: "assets/A1_Map.jpg", link: "https://jmflorencio.github.io/BaguioBotanicalMap/" },
+            { name: "Arbor", thumb: "assets/Arbor.png", link: "https://tour.panoee.net/69aa67e9add064456619ce3d/69aa73d3add0647cc419cf6d" },
+            { name: "Cactus & Succulents", thumb: "assets/Cactus&Succulents.png", link: "" },
+            { name: "Chinese Garden", thumb: "assets/Chinese%20Garden.png", link: "" },
+            { name: "Friendship Garden", thumb: "assets/City%20of%20Vaughan%20Friendship%20Garden.png", link: "https://tour.panoee.net/69aa67e9add064456619ce3d/69aa73d3add0647cc419cf6d" },
+            { name: "Cordillera Village", thumb: "assets/Cordillera%20Village.png", link: "" },
+            { name: "Greenhouse", thumb: "assets/Greenhouse.png", link: "" },
+            { name: "Japanese Garden", thumb: "assets/Japanese%20Garden.png", link: "https://tour.panoee.net/69aa67e9add064456619ce3d/69aa73d3add0647cc419cf6d" },
+            { name: "Japanese Tunnel", thumb: "assets/Japanese%20Tunnel.png", link: "https://tour.panoee.net/69aa67e9add064456619ce3d/69aa73d3add0647cc419cf6d" },
+            { name: "Korea Garden", thumb: "assets/Korea%20Garden.png", link: "https://tour.panoee.net/69aa67e9add064456619ce3d/69aa73d3add0647cc419cf6d" },
+            { name: "Orchidarium", thumb: "assets/Orchidarium.png", link: "https://tour.panoee.net/69aa67e9add064456619ce3d/69aa73d3add0647cc419cf6d" },
+            { name: "PMSEA Garden", thumb: "assets/PMSEA%20Garden.png", link: "https://tour.panoee.net/69aa67e9add064456619ce3d/69aa73d3add0647cc419cf6d" }
         ];
 
         function buildUI() {
@@ -139,20 +133,17 @@
             root.innerHTML = stations.map((s, i) => `
                 <div class="station-card" id="card-${i}" onclick="handleCardTap(${i})">
                     <div style="height:75%; background:#1a1a1a; overflow:hidden;">
-                        <img src="${s.thumb}" style="width:100%; height:100%; object-fit:cover;" 
-                             onerror="console.error('Missing: ' + this.src)">
+                        <img src="${s.thumb}" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display='none'">
                     </div>
                     <div style="font-size:8px; text-align:center; padding:8px 4px; font-weight:bold; color:#fff; text-transform:uppercase;">${s.name}</div>
                 </div>
             `).join('');
         }
 
-        // TAPPING: TOGGLE EFFECT
         function handleCardTap(index) {
             const card = document.getElementById(`card-${index}`);
             const isAlreadyActive = card.classList.contains('react');
             document.querySelectorAll('.station-card').forEach(c => c.classList.remove('react'));
-
             if (!isAlreadyActive) {
                 card.classList.add('react');
                 card.scrollIntoView({behavior: "smooth", inline: "center"});
@@ -163,7 +154,6 @@
             }
         }
 
-        // SCANNING: TARGET MATCHING
         function setupTracking() {
             const container = document.getElementById('target-container');
             stations.forEach((s, i) => {
@@ -192,23 +182,22 @@
             const btn = document.getElementById('cam-toggle');
             const hud = document.getElementById('gallery-hud');
             const sceneEl = document.querySelector('a-scene');
-            const shutter = document.getElementById('shutter');
-
             if(!btn.classList.contains('active')) {
                 try {
-                    await navigator.mediaDevices.getUserMedia({ video: true }); // Request permission
+                    // Mobile Fix: explicitly wait for user permission
+                    await navigator.mediaDevices.getUserMedia({ video: true });
                     btn.classList.add('active');
                     hud.classList.add('visible');
-                    shutter.style.opacity = '0';
+                    document.getElementById('shutter').style.opacity = '0';
                     sceneEl.systems['mindar-image-system'].start();
                     document.getElementById('gps-status').innerText = "SCANNING...";
                 } catch (err) {
-                    alert("Camera access denied. Please enable camera in site settings.");
+                    alert("Camera access denied! Check your browser permissions.");
                 }
             } else {
                 btn.classList.remove('active');
                 hud.classList.remove('visible');
-                shutter.style.opacity = '1';
+                document.getElementById('shutter').style.opacity = '1';
                 sceneEl.systems['mindar-image-system'].stop();
                 document.getElementById('gps-status').innerText = "INITIALIZING...";
             }
@@ -235,7 +224,10 @@
             document.getElementById('webview-container').style.display = 'flex';
         }
 
-        function closeWebView() { document.getElementById('webview-container').style.display = 'none'; document.getElementById('web-frame').src = ''; }
+        function closeWebView() { 
+            document.getElementById('webview-container').style.display = 'none'; 
+            document.getElementById('web-frame').src = ''; 
+        }
     </script>
 </body>
 </html>
