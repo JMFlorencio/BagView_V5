@@ -12,21 +12,32 @@
         :root { --accent: #00ff88; --error: #ff4444; --glass: rgba(0, 0, 0, 0.75); --blur: blur(20px); }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; font-family: 'Segoe UI', sans-serif; color: white; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; color: white; }
 
-        /* Fix to ensure camera feed isn't blocked on mobile */
+        /* MOBILE CAMERA FIX */
+        /* MindAR injects a video element. We must ensure it stays behind the UI but visible. */
+        .mindar-ui-overlay { z-index: 50; } /* Keep MindAR's own UI below yours */
+        
         video { 
             position: fixed !important; 
-            top: 50% !important; 
-            left: 50% !important; 
-            transform: translate(-50%, -50%) !important; 
-            object-fit: cover !important; 
+            top: 0 !important; 
+            left: 0 !important; 
             width: 100vw !important; 
-            height: 100vh !important;
-            z-index: -1 !important; 
+            height: 100vh !important; 
+            object-fit: cover !important; 
+            z-index: -2 !important; 
         }
 
-        #ui-layer { position: fixed; inset: 0; z-index: 100; pointer-events: none; transition: 0.5s; }
+        /* Ensure A-Frame canvas is transparent */
+        .a-canvas {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            z-index: -1 !important;
+        }
+
+        #ui-layer { position: fixed; inset: 0; z-index: 100; pointer-events: none; transition: 0.5s; visibility: hidden; }
+        #ui-layer.visible-flex { visibility: visible; }
         .top-nav, .bottom-area, .full-page, .advisory-trigger, .icon-btn, .cam-btn, .station-card { pointer-events: auto; }
 
         #match-notification { position: fixed; top: 100px; left: 50%; transform: translateX(-50%); padding: 12px 25px; border-radius: 50px; font-weight: 900; font-size: 11px; letter-spacing: 2px; z-index: 5000; opacity: 0; transition: 0.3s; pointer-events: none; backdrop-filter: blur(10px); background: var(--accent); color: #000; text-align: center; min-width: 220px; }
@@ -41,14 +52,15 @@
 
         .top-nav { position: absolute; top: 0; left: 0; right: 0; padding: 30px 20px; display: flex; justify-content: space-between; align-items: flex-start; }
         .gps-display { background: var(--glass); backdrop-filter: var(--blur); padding: 10px 18px; border-radius: 12px; border-left: 3px solid var(--accent); display: flex; align-items: center; gap: 10px; }
-        .pulse { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; animation: pulse-anim 2s infinite; } 
+        .pulse { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; }
+        .active-pulse { animation: pulse-anim 2s infinite; }
 
         .bottom-area { position: absolute; bottom: 0; left: 0; right: 0; }
         .bottom-dock { padding: 20px 0 130px; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); opacity: 0; transform: translateY(50px); transition: 0.5s; }
         .bottom-dock.visible { opacity: 1; transform: translateY(0); }
         .scroll-container { display: flex; gap: 12px; overflow-x: auto; padding: 0 20px; scrollbar-width: none; }
         
-        .station-card { min-width: 100px; height: 130px; background: #111; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer; }
+        .station-card { min-width: 100px; height: 130px; background: #111; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; transition: 0.4s; cursor: pointer; }
         .station-card.react { transform: translateY(-20px); border-color: var(--accent); }
 
         .nav-bar { position: absolute; bottom: 40px; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 25px; }
@@ -81,14 +93,14 @@
     </div>
 
     <div id="tutorial-page" class="overlay-screen hidden">
-        <div class="video-container"><video id="tut-video" class="tut-vid" playsinline><source src="assets/tutorial.mp4" type="video/mp4"></video></div>
+        <div class="video-container"><video id="tut-video" class="tut-vid" playsinline><source src="Assets/tutorial.mp4" type="video/mp4"></video></div>
         <div class="skip-fab" onclick="finishTutorial()">SKIP TUTORIAL ➔</div>
     </div>
 
-    <div id="ui-layer" class="hidden">
+    <div id="ui-layer">
         <div class="top-nav">
             <div class="gps-display">
-                <div class="pulse"></div>
+                <div id="status-pulse" class="pulse"></div>
                 <div id="gps-status" style="font-size:11px; font-weight:900;">INITIALIZING...</div>
             </div>
         </div>
@@ -107,7 +119,7 @@
 
     <div id="shutter"></div>
 
-    <a-scene mindar-image="imageTargetSrc: targets.mind; autoStart: false; uiLoading: no; uiScanning: no;" embedded renderer="transparent: true; alpha: true;">
+    <a-scene mindar-image="imageTargetSrc: targets.mind; autoStart: false; uiLoading: no; uiScanning: no;" embedded renderer="colorManagement: true, transparent: true, alpha: true;">
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
         <a-entity id="target-container"></a-entity>
     </a-scene>
@@ -133,7 +145,7 @@
             root.innerHTML = stations.map((s, i) => `
                 <div class="station-card" id="card-${i}" onclick="handleCardTap(${i})">
                     <div style="height:75%; background:#1a1a1a; overflow:hidden;">
-                        <img src="${s.thumb}" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display='none'">
+                        <img src="${s.thumb}" style="width:100%; height:100%; object-fit:cover;" onerror="this.src='https://via.placeholder.com/100x130?text=No+Img'">
                     </div>
                     <div style="font-size:8px; text-align:center; padding:8px 4px; font-weight:bold; color:#fff; text-transform:uppercase;">${s.name}</div>
                 </div>
@@ -142,16 +154,14 @@
 
         function handleCardTap(index) {
             const card = document.getElementById(`card-${index}`);
-            const isAlreadyActive = card.classList.contains('react');
             document.querySelectorAll('.station-card').forEach(c => c.classList.remove('react'));
-            if (!isAlreadyActive) {
-                card.classList.add('react');
-                card.scrollIntoView({behavior: "smooth", inline: "center"});
-                const toast = document.getElementById('match-notification');
-                toast.innerText = "FIND THE TARGET IMAGE";
-                toast.classList.add('show');
-                setTimeout(() => toast.classList.remove('show'), 2000);
-            }
+            card.classList.add('react');
+            card.scrollIntoView({behavior: "smooth", inline: "center"});
+            
+            const toast = document.getElementById('match-notification');
+            toast.innerText = "FIND THE TARGET IMAGE";
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
         }
 
         function setupTracking() {
@@ -182,24 +192,31 @@
             const btn = document.getElementById('cam-toggle');
             const hud = document.getElementById('gallery-hud');
             const sceneEl = document.querySelector('a-scene');
+            const pulse = document.getElementById('status-pulse');
+            
             if(!btn.classList.contains('active')) {
                 try {
-                    // Mobile Fix: explicitly wait for user permission
-                    await navigator.mediaDevices.getUserMedia({ video: true });
+                    // Start MindAR
+                    await sceneEl.systems['mindar-image-system'].start();
+                    
                     btn.classList.add('active');
                     hud.classList.add('visible');
+                    pulse.classList.add('active-pulse');
                     document.getElementById('shutter').style.opacity = '0';
-                    sceneEl.systems['mindar-image-system'].start();
                     document.getElementById('gps-status').innerText = "SCANNING...";
+                    
+                    // Force Video to Background again after MindAR starts
+                    const v = document.querySelector('video');
+                    if(v) {
+                        v.style.zIndex = "-2";
+                        v.setAttribute('playsinline', '');
+                    }
                 } catch (err) {
-                    alert("Camera access denied! Check your browser permissions.");
+                    alert("Camera error: Please ensure you are on HTTPS and granted permissions.");
+                    console.error(err);
                 }
             } else {
-                btn.classList.remove('active');
-                hud.classList.remove('visible');
-                document.getElementById('shutter').style.opacity = '1';
-                sceneEl.systems['mindar-image-system'].stop();
-                document.getElementById('gps-status').innerText = "INITIALIZING...";
+                location.reload(); // Cleanest way to stop camera on mobile
             }
         }
 
@@ -212,7 +229,7 @@
         function finishTutorial() {
             document.getElementById('tut-video').pause();
             document.getElementById('tutorial-page').classList.add('hidden');
-            document.getElementById('ui-layer').classList.remove('hidden');
+            document.getElementById('ui-layer').classList.add('visible-flex');
             buildUI();
             setupTracking();
         }
@@ -220,7 +237,7 @@
         function openStation(index) {
             const s = stations[index];
             document.getElementById('web-frame').src = s.link;
-            document.getElementById('web-title').innerText = s.name + " INFO";
+            document.getElementById('web-title').innerText = s.name.toUpperCase() + " INFO";
             document.getElementById('webview-container').style.display = 'flex';
         }
 
@@ -231,5 +248,3 @@
     </script>
 </body>
 </html>
-
-
