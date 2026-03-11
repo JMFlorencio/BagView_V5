@@ -14,30 +14,24 @@
         
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; color: white; }
 
-        /* MOBILE CAMERA FIX */
-        /* MindAR injects a video element. We must ensure it stays behind the UI but visible. */
-        .mindar-ui-overlay { z-index: 50; } /* Keep MindAR's own UI below yours */
-        
+        /* MOBILE FIX: Force video behind UI */
         video { 
             position: fixed !important; 
-            top: 0 !important; 
-            left: 0 !important; 
-            width: 100vw !important; 
-            height: 100vh !important; 
+            top: 50% !important; 
+            left: 50% !important; 
+            transform: translate(-50%, -50%) !important; 
             object-fit: cover !important; 
+            width: 100vw !important; 
+            height: 100vh !important;
             z-index: -2 !important; 
         }
 
-        /* Ensure A-Frame canvas is transparent */
-        .a-canvas {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            z-index: -1 !important;
-        }
+        /* Ensure AR scene doesn't have a black background */
+        a-scene { position: fixed; inset: 0; z-index: -1; }
 
-        #ui-layer { position: fixed; inset: 0; z-index: 100; pointer-events: none; transition: 0.5s; visibility: hidden; }
-        #ui-layer.visible-flex { visibility: visible; }
+        #ui-layer { position: fixed; inset: 0; z-index: 100; pointer-events: none; transition: 0.5s; }
+        .visible-ui { visibility: visible; }
+        .hidden-ui { visibility: hidden; }
         .top-nav, .bottom-area, .full-page, .advisory-trigger, .icon-btn, .cam-btn, .station-card { pointer-events: auto; }
 
         #match-notification { position: fixed; top: 100px; left: 50%; transform: translateX(-50%); padding: 12px 25px; border-radius: 50px; font-weight: 900; font-size: 11px; letter-spacing: 2px; z-index: 5000; opacity: 0; transition: 0.3s; pointer-events: none; backdrop-filter: blur(10px); background: var(--accent); color: #000; text-align: center; min-width: 220px; }
@@ -97,7 +91,7 @@
         <div class="skip-fab" onclick="finishTutorial()">SKIP TUTORIAL ➔</div>
     </div>
 
-    <div id="ui-layer">
+    <div id="ui-layer" class="hidden-ui">
         <div class="top-nav">
             <div class="gps-display">
                 <div id="status-pulse" class="pulse"></div>
@@ -196,7 +190,9 @@
             
             if(!btn.classList.contains('active')) {
                 try {
-                    // Start MindAR
+                    // Mobile Fix: Request access first
+                    await navigator.mediaDevices.getUserMedia({ video: true });
+                    
                     await sceneEl.systems['mindar-image-system'].start();
                     
                     btn.classList.add('active');
@@ -205,18 +201,19 @@
                     document.getElementById('shutter').style.opacity = '0';
                     document.getElementById('gps-status').innerText = "SCANNING...";
                     
-                    // Force Video to Background again after MindAR starts
-                    const v = document.querySelector('video');
-                    if(v) {
-                        v.style.zIndex = "-2";
-                        v.setAttribute('playsinline', '');
+                    // Force Video visibility for iOS/Android
+                    const video = document.querySelector('video');
+                    if (video) {
+                        video.setAttribute('playsinline', '');
+                        video.setAttribute('muted', '');
+                        video.play();
                     }
                 } catch (err) {
-                    alert("Camera error: Please ensure you are on HTTPS and granted permissions.");
+                    alert("Camera error: Ensure you are using HTTPS and have allowed camera access.");
                     console.error(err);
                 }
             } else {
-                location.reload(); // Cleanest way to stop camera on mobile
+                location.reload(); 
             }
         }
 
@@ -229,7 +226,7 @@
         function finishTutorial() {
             document.getElementById('tut-video').pause();
             document.getElementById('tutorial-page').classList.add('hidden');
-            document.getElementById('ui-layer').classList.add('visible-flex');
+            document.getElementById('ui-layer').classList.remove('hidden-ui');
             buildUI();
             setupTracking();
         }
