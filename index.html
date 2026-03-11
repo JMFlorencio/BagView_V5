@@ -14,7 +14,7 @@
         
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; color: white; }
 
-        /* MOBILE FIX: Force video behind UI */
+        /* CAMERA FIX: Ensures feed is visible behind everything */
         video { 
             position: fixed !important; 
             top: 50% !important; 
@@ -26,7 +26,6 @@
             z-index: -2 !important; 
         }
 
-        /* Ensure AR scene doesn't have a black background */
         a-scene { position: fixed; inset: 0; z-index: -1; }
 
         #ui-layer { position: fixed; inset: 0; z-index: 100; pointer-events: none; transition: 0.5s; }
@@ -164,9 +163,9 @@
                 const entity = document.createElement('a-entity');
                 entity.setAttribute('mindar-image-target', `targetIndex: ${i}`);
                 entity.addEventListener("targetFound", () => {
-                    document.querySelectorAll('.station-card').forEach(c => c.classList.remove('react'));
                     const card = document.getElementById(`card-${i}`);
                     if(card) {
+                        document.querySelectorAll('.station-card').forEach(c => c.classList.remove('react'));
                         card.classList.add('react');
                         card.scrollIntoView({behavior: "smooth", inline: "center"});
                     }
@@ -190,9 +189,14 @@
             
             if(!btn.classList.contains('active')) {
                 try {
-                    // Mobile Fix: Request access first
-                    await navigator.mediaDevices.getUserMedia({ video: true });
+                    // STEP 1: FORCE PERMISSION POPUP
+                    document.getElementById('gps-status').innerText = "REQUESTING CAMERA...";
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
                     
+                    // Release initial stream so MindAR can take over properly
+                    stream.getTracks().forEach(track => track.stop());
+
+                    // STEP 2: START MINDAR
                     await sceneEl.systems['mindar-image-system'].start();
                     
                     btn.classList.add('active');
@@ -201,15 +205,18 @@
                     document.getElementById('shutter').style.opacity = '0';
                     document.getElementById('gps-status').innerText = "SCANNING...";
                     
-                    // Force Video visibility for iOS/Android
+                    // STEP 3: MOBILE OVERRIDE
                     const video = document.querySelector('video');
                     if (video) {
                         video.setAttribute('playsinline', '');
                         video.setAttribute('muted', '');
-                        video.play();
+                        video.setAttribute('autoplay', '');
+                        video.style.zIndex = "-2";
+                        video.play().catch(e => console.log("Auto-play blocked, waiting for interaction"));
                     }
                 } catch (err) {
-                    alert("Camera error: Ensure you are using HTTPS and have allowed camera access.");
+                    alert("CAMERA ERROR: Please ensure you are using HTTPS and have allowed camera access in your settings.");
+                    document.getElementById('gps-status').innerText = "ERROR: NO ACCESS";
                     console.error(err);
                 }
             } else {
@@ -233,6 +240,7 @@
 
         function openStation(index) {
             const s = stations[index];
+            if(!s.link) return;
             document.getElementById('web-frame').src = s.link;
             document.getElementById('web-title').innerText = s.name.toUpperCase() + " INFO";
             document.getElementById('webview-container').style.display = 'flex';
